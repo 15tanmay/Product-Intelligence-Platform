@@ -12,7 +12,6 @@ import sqlite3
 
 from database.db import get_connection, initialize_database
 from config.settings import DATA_DIR, DATASET_FILES, REPLACE_ONLY_TABLES, SCHEMA_PATH
-from config.dataset_schema import EXPECTED_COLUMNS
 from app_logging.logger import get_logger
 from validation.validator import DataValidator
 
@@ -20,15 +19,15 @@ logger = get_logger(__name__)
 
 
 def _validate_dataframe(df: pd.DataFrame, table_name: str) -> bool:
-    """Run schema validation and return True if the DataFrame is safe to load."""
-    expected = EXPECTED_COLUMNS.get(table_name)
-    if expected is None:
-        logger.warning(f"No column expectations defined for '{table_name}' — skipping validation.")
-        return True
-    if not DataValidator.validate_schema(df, expected):
-        logger.error(f"Schema validation failed for '{table_name}'. Aborting load.")
-        return False
-    return True
+    """Run full validation (schema, PK uniqueness, null checks) for *table_name*.
+
+    Delegates to DataValidator.validate_table which uses the shared constants
+    in config.dataset_schema for column expectations, PK definitions, and
+    critical-column null thresholds.
+
+    Returns True if the DataFrame is safe to load, False otherwise.
+    """
+    return DataValidator.validate_table(df, table_name)
 
 
 def _reapply_indexes() -> None:
